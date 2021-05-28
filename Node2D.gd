@@ -7,6 +7,8 @@ const map_width = 16
 const map_height = 16
 const map = Array()
 
+var turn = 1
+
 class Empire:
     var color: Color
 
@@ -62,25 +64,16 @@ func _ready():
     u1.min_control = 1
     u1.r_control = 1
     u1.speed = 10
-    u1.tile = Vector2(1, 3)
+    u1.tile = Vector2(1, 14)
     u1.next_tile = u1.tile
     units.push_back(u1)
-    
-    var u11 = Unit.new()
-    u11.empire = 1
-    u11.min_control = 1
-    u11.r_control = 1
-    u11.speed = 10
-    u11.tile = Vector2(1, 5)
-    u11.next_tile = u11.tile
-    units.push_back(u11)
-    
+
     var u2 = Unit.new()
     u2.empire = 2
     u2.min_control = 1
     u2.r_control = 1
     u2.speed = 10
-    u2.tile = Vector2(1, 14)
+    u2.tile = Vector2(14, 14)
     u2.next_tile = u2.tile
     units.push_back(u2)
     
@@ -94,7 +87,8 @@ func _ready():
     units.push_back(u3)
     
     $Button.margin_left = map_width * TILE_SIZE
-    $CheckButton.margin_left = map_width * TILE_SIZE
+    $Label.margin_left = map_width * TILE_SIZE
+    $Label.text = "Turn " + str(turn)
     
     astar.reserve_space(map_width * map_height * 2)
     for x in range(map_width):
@@ -237,33 +231,28 @@ func _input(event: InputEvent):
                         if path != null and path.size() > 0 and path.size() <= selected_unit.speed:
                             selected_movements.append(Vector2(x, y))
             if movement:
-                if $CheckButton.pressed:
-                    var found = false
-                    for u2 in units:
-                        if u2.tile.x == tiles.x and u2.tile.y == tiles.y \
-                            and abs(selected_unit.next_tile.x - u2.tile.x) <= 1 \
-                            and abs(selected_unit.next_tile.y - u2.tile.y) <= 1 \
-                            and selected_unit.empire != u2.empire:
-                            var is_allies = false
-                            for a in allies:
-                                if a.x == selected_unit.empire and a.y == u2.empire:
-                                    is_allies = true
-                                    break
-                                elif a.y == selected_unit.empire and a.x == u2.empire:
-                                    is_allies = true
-                                    break
-                            if not is_allies:
-                                selected_unit.attack_tile = tiles
-                                found = true
-                                for p in astar.get_points():
-                                    astar.set_point_disabled(p, false)
-                                update()
-                    if not found:
-                        selected_unit.attack_tile = null
-                        for p in astar.get_points():
-                            astar.set_point_disabled(p, false)
-                        update()
-                else:
+                var found = false
+                for u2 in units:
+                    if u2.tile.x == tiles.x and u2.tile.y == tiles.y \
+                        and abs(selected_unit.next_tile.x - u2.tile.x) <= 1 \
+                        and abs(selected_unit.next_tile.y - u2.tile.y) <= 1 \
+                        and selected_unit.empire != u2.empire:
+                        var is_allies = false
+                        for a in allies:
+                            if a.x == selected_unit.empire and a.y == u2.empire:
+                                is_allies = true
+                                break
+                            elif a.y == selected_unit.empire and a.x == u2.empire:
+                                is_allies = true
+                                break
+                        if not is_allies:
+                            selected_unit.attack_tile = tiles
+                            found = true
+                            for p in astar.get_points():
+                                astar.set_point_disabled(p, false)
+                            update()
+                if not found:
+                    selected_unit.attack_tile = null
                     var path = astar.get_id_path(selected_unit.tile.x + map_width * selected_unit.tile.y, tiles.x + map_width * tiles.y)
                     if path != null and path.size() > 0 and path.size() <= selected_unit.speed:
                         selected_unit.next_tile = tiles
@@ -294,8 +283,33 @@ func _on_Button_pressed():
     deadidx.sort()
     for i in range(deadidx.size()):
         units.remove(deadidx[deadidx.size() - 1 - i])
+    turn = turn + 1
+    $Label.text = "Turn " + str(turn)
     selected_unit = null
     for p in astar.get_points():
         astar.set_point_disabled(p, false)
+    calc_zones()
+    for e in range(empires.size()):
+        var avail = PoolVector2Array()
+        for x in range(map_width):
+            for y in range(map_height):
+                if map[x][y] != null and map[x][y].control_empire != null and map[x][y].control_empire == e:
+                    var empty = true
+                    for u in units:
+                        if u.tile.x == x and u.tile.y == y:
+                            empty = false
+                            break
+                    if empty:
+                        avail.push_back(Vector2(x, y))
+        if avail.size() > 0:
+            var new_unit_tile = avail[randi() % avail.size()]
+            var new_unit = Unit.new()
+            new_unit.empire = e
+            new_unit.min_control = 1
+            new_unit.r_control = 1
+            new_unit.speed = 10
+            new_unit.tile = new_unit_tile
+            new_unit.next_tile = new_unit_tile
+            units.push_back(new_unit)
     calc_zones()
     update()

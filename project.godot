@@ -15,7 +15,7 @@ _global_script_class_icons={
 
 [application]
 
-config/name="Deferren-turn-zone-of-control"
+config/name="Deferred-turn-zone-of-control"
 run/main_scene="res://Node2D.tscn"
 config/icon="res://icon.png"
 
