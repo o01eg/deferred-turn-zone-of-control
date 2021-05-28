@@ -21,6 +21,7 @@ class TileInfo:
     var control_empire
 
 var selected_unit = null
+var selected_movements = PoolVector2Array()
 
 const empires = Array()
 const allies = Array()
@@ -161,6 +162,14 @@ func _draw():
             if control != null:
                 if control.control_empire != null:
                     draw_rect(Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), empires[control.control_empire].color)
+                    if selected_unit != null and control.control_empire == selected_unit.empire:
+                        var movable = false
+                        for m in selected_movements:
+                            if m.x == x && m.y == y:
+                                movable = true
+                        if not movable:
+                            draw_line(Vector2(x * TILE_SIZE, y * TILE_SIZE), Vector2(x * TILE_SIZE + TILE_SIZE - 1, y * TILE_SIZE + TILE_SIZE - 1), Color.black)
+                            draw_line(Vector2(x * TILE_SIZE + TILE_SIZE - 1, y * TILE_SIZE), Vector2(x * TILE_SIZE, y * TILE_SIZE + TILE_SIZE - 1), Color.black)
                 else:
                     draw_rect(Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), Color.black)
             else:
@@ -181,9 +190,22 @@ func _input(event: InputEvent):
                     found = true
                     if selected_unit != u:
                         selected_unit = u
+                        selected_movements = PoolVector2Array()
                         for p in astar.get_points():
                             astar.set_point_disabled(p, false)
-                        
+                        for x in range(map_width):
+                            for y in range(map_height):
+                                var control = map[x][y]
+                                if control == null or control.control_empire == null or control.control_empire != u.empire:
+                                    astar.set_point_disabled(x + map_width * y, true)
+                        for u2 in units:
+                            if u != u2:
+                                astar.set_point_disabled(u2.next_tile.x + map_width * u2.next_tile.y, true)
+                        for x in range(map_width):
+                            for y in range(map_height):
+                                var path = astar.get_id_path(u.tile.x + map_width * u.tile.y, x + map_width * y)
+                                if path != null and path.size() > 0 and path.size() <= u.speed:
+                                    selected_movements.append(Vector2(x, y))
                         update()
             if not found:
                 selected_unit = null
@@ -197,7 +219,10 @@ func _input(event: InputEvent):
                     astar.set_point_disabled(p, false)
                 update()
     if event is InputEventMouseButton and event.button_index == BUTTON_RIGHT and selected_unit != null:
-        pass
+        selected_unit = null
+        for p in astar.get_points():
+            astar.set_point_disabled(p, false)
+        update()
 
 
 func _on_Button_pressed():
