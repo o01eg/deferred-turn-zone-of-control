@@ -16,7 +16,13 @@ _global_script_class_icons={
 [application]
 
 config/name="Deferren-turn-zone-of-control"
+run/main_scene="res://Node2D.tscn"
 config/icon="res://icon.png"
+
+[display]
+
+window/size/width=1600
+window/size/height=1000
 
 [rendering]
 
