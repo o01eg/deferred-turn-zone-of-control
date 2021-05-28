@@ -114,7 +114,6 @@ func _ready():
                 astar.connect_points(x + map_width * y, DIAG_ID + x + map_width * (y - 1), true)
             if x > 0 and y > 0:
                 astar.connect_points(x + map_width * y, DIAG_ID + (x - 1) + map_width * (y - 1), true)
-    
     calc_zones()
     
 func calc_zones():
