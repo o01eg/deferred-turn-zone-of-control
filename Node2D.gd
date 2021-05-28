@@ -13,8 +13,8 @@ class Unit:
     var r_control: int
     var speed: int
     var empire: int
-    var tile_x: int
-    var tile_y: int
+    var tile: Vector2
+    var next_tile: Vector2
 
 var selected_unit = null
 
@@ -45,8 +45,8 @@ func _ready():
     u0.min_control = 1
     u0.r_control = 1
     u0.speed = 10
-    u0.tile_x = 1
-    u0.tile_y = 1
+    u0.tile = Vector2(1, 1)
+    u0.next_tile = u0.tile
     units.push_back(u0)
     
     var u1 = Unit.new()
@@ -54,8 +54,8 @@ func _ready():
     u1.min_control = 1
     u1.r_control = 1
     u1.speed = 10
-    u1.tile_x = 1
-    u1.tile_y = 3
+    u1.tile = Vector2(1, 3)
+    u1.next_tile = u1.tile
     units.push_back(u1)
     
     var u11 = Unit.new()
@@ -63,8 +63,8 @@ func _ready():
     u11.min_control = 1
     u11.r_control = 1
     u11.speed = 10
-    u11.tile_x = 1
-    u11.tile_y = 5
+    u11.tile = Vector2(1, 5)
+    u11.next_tile = u11.tile
     units.push_back(u11)
     
     var u2 = Unit.new()
@@ -72,8 +72,8 @@ func _ready():
     u2.min_control = 1
     u2.r_control = 1
     u2.speed = 10
-    u2.tile_x = 1
-    u2.tile_y = 14
+    u2.tile = Vector2(1, 14)
+    u2.next_tile = u2.tile
     units.push_back(u2)
     
     var u3 = Unit.new()
@@ -81,8 +81,8 @@ func _ready():
     u3.min_control = 1
     u3.r_control = 1
     u3.speed = 10
-    u3.tile_x = 14
-    u3.tile_y = 1
+    u3.tile = Vector2(14, 1)
+    u3.next_tile = u3.tile
     units.push_back(u3)
     
     $Button.margin_left = map_width * TILE_SIZE
@@ -111,12 +111,12 @@ func calc_zones():
             astar.set_point_disabled(p, false)
         for u in units:
             if u.empire != e:
-                astar.set_point_disabled(u.tile_x + map_width * u.tile_y, true)
+                astar.set_point_disabled(u.tile.x + map_width * u.tile.y, true)
         for u in units:
             if u.empire == e:
                 for x in range(map_width):
                     for y in range(map_height):
-                        var path = astar.get_id_path(u.tile_x + map_width * u.tile_y, x + map_width * y)
+                        var path = astar.get_id_path(u.tile.x + map_width * u.tile.y, x + map_width * y)
                         if path.size() <= u.speed and path.size() > 0:
                             if map[x][y] == null:
                                 map[x][y] = Dictionary()
@@ -147,24 +147,30 @@ func _draw():
                     draw_rect(Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), empires[max_empires[0]].color)
                 else:
                     max_empires.sort()
-                    draw_rect(Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), empires[max_empires[(x + map_width * y) % max_empires.size()]].color)
+                    var e = max_empires[(x + map_width * y) % max_empires.size()]
+                    draw_rect(Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), empires[e].color)
             else:
                 draw_rect(Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), Color.black)
     for u in units:
         if selected_unit == u:
-            draw_circle(Vector2(u.tile_x * TILE_SIZE + TILE_SIZE / 2, u.tile_y * TILE_SIZE + TILE_SIZE / 2), TILE_SIZE / 2, Color.gray)
-        draw_texture(preload("res://assets/unit.png"), Vector2(u.tile_x * TILE_SIZE, u.tile_y * TILE_SIZE), empires[u.empire].color)
+            draw_circle(Vector2(u.tile.x * TILE_SIZE + TILE_SIZE / 2, u.tile.y * TILE_SIZE + TILE_SIZE / 2), TILE_SIZE / 2, Color.gray)
+        draw_texture(preload("res://assets/unit.png"), Vector2(u.tile.x * TILE_SIZE, u.tile.y * TILE_SIZE), empires[u.empire].color)
 
 func _input(event: InputEvent):
     if event is InputEventMouseButton and event.button_index == BUTTON_LEFT:
         var tiles = event.position / TILE_SIZE
         tiles = Vector2(floor(tiles.x), floor(tiles.y))
         if tiles.x >= 0 and tiles.x < map_width and tiles.y >= 0 and tiles.y < map_height:
+            var found = false
             for u in units:
-                if u.tile_x == tiles.x and u.tile_y == tiles.y:
+                if u.tile.x == tiles.x and u.tile.y == tiles.y:
+                    found = true
                     if selected_unit != u:
                         selected_unit = u
                         update()
+            if not found:
+                selected_unit = null
+                update()
         else:
             if selected_unit != null:
                 selected_unit = null
