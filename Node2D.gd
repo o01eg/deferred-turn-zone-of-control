@@ -178,46 +178,53 @@ func _draw():
         if selected_unit == u:
             draw_circle(Vector2(u.tile.x * TILE_SIZE + TILE_SIZE / 2, u.tile.y * TILE_SIZE + TILE_SIZE / 2), TILE_SIZE / 2, Color.gray)
         draw_texture(preload("res://assets/unit.png"), Vector2(u.tile.x * TILE_SIZE, u.tile.y * TILE_SIZE), empires[u.empire].color)
+        if u.tile.x != u.next_tile.x or u.tile.y != u.next_tile.y:
+            draw_line(Vector2(u.tile.x * TILE_SIZE + TILE_SIZE / 2, u.tile.y * TILE_SIZE + TILE_SIZE / 2), Vector2(u.next_tile.x * TILE_SIZE + TILE_SIZE / 2, u.next_tile.y * TILE_SIZE + TILE_SIZE / 2), Color.black)
 
 func _input(event: InputEvent):
     if event is InputEventMouseButton and event.button_index == BUTTON_LEFT:
         var tiles = event.position / TILE_SIZE
         tiles = Vector2(floor(tiles.x), floor(tiles.y))
         if tiles.x >= 0 and tiles.x < map_width and tiles.y >= 0 and tiles.y < map_height:
-            var found = false
-            for u in units:
-                if u.tile.x == tiles.x and u.tile.y == tiles.y:
-                    found = true
-                    if selected_unit != u:
-                        selected_unit = u
-                        selected_movements = PoolVector2Array()
-                        for p in astar.get_points():
-                            astar.set_point_disabled(p, false)
-                        for x in range(map_width):
-                            for y in range(map_height):
-                                var control = map[x][y]
-                                if control == null or control.control_empire == null or control.control_empire != u.empire:
-                                    astar.set_point_disabled(x + map_width * y, true)
-                        for u2 in units:
-                            if u != u2:
-                                astar.set_point_disabled(u2.next_tile.x + map_width * u2.next_tile.y, true)
-                        for x in range(map_width):
-                            for y in range(map_height):
-                                var path = astar.get_id_path(u.tile.x + map_width * u.tile.y, x + map_width * y)
-                                if path != null and path.size() > 0 and path.size() <= u.speed:
-                                    selected_movements.append(Vector2(x, y))
-                        update()
-            if not found:
-                selected_unit = null
-                for p in astar.get_points():
-                    astar.set_point_disabled(p, false)
-                update()
-        else:
+            var movement = selected_unit != null
+            if selected_unit == null:
+                var found = false
+                for u in units:
+                    if u.tile.x == tiles.x and u.tile.y == tiles.y:
+                        found = true
+                        if selected_unit != u:
+                            selected_unit = u
+                            update()
+                if not found:
+                    selected_unit = null
+                    for p in astar.get_points():
+                        astar.set_point_disabled(p, false)
+                    update()
             if selected_unit != null:
-                selected_unit = null
+                selected_movements = PoolVector2Array()
                 for p in astar.get_points():
                     astar.set_point_disabled(p, false)
-                update()
+                for x in range(map_width):
+                    for y in range(map_height):
+                        var control = map[x][y]
+                        if control == null or control.control_empire == null or control.control_empire != selected_unit.empire:
+                            astar.set_point_disabled(x + map_width * y, true)
+                for u2 in units:
+                    if selected_unit != u2:
+                        astar.set_point_disabled(u2.next_tile.x + map_width * u2.next_tile.y, true)
+                for x in range(map_width):
+                    for y in range(map_height):
+                        var path = astar.get_id_path(selected_unit.tile.x + map_width * selected_unit.tile.y, x + map_width * y)
+                        if path != null and path.size() > 0 and path.size() <= selected_unit.speed:
+                            selected_movements.append(Vector2(x, y))
+            if movement:
+                var path = astar.get_id_path(selected_unit.tile.x + map_width * selected_unit.tile.y, tiles.x + map_width * tiles.y)
+                print(path)
+                if path != null and path.size() > 0 and path.size() <= selected_unit.speed:
+                    selected_unit.next_tile = tiles
+                    for p in astar.get_points():
+                        astar.set_point_disabled(p, false)
+                    update()
     if event is InputEventMouseButton and event.button_index == BUTTON_RIGHT and selected_unit != null:
         selected_unit = null
         for p in astar.get_points():
