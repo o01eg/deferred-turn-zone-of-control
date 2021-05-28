@@ -1,6 +1,8 @@
 extends Node2D
 
 const TILE_SIZE = 64
+
+const DIAG_ID:int= 100000
 const map_width = 16
 const map_height = 16
 const map = Array()
@@ -92,10 +94,12 @@ func _ready():
     
     $Button.margin_left = map_width * TILE_SIZE
     
-    astar.reserve_space(map_width * map_height)
+    astar.reserve_space(map_width * map_height * 2)
     for x in range(map_width):
         for y in range(map_height):
             astar.add_point(x + map_width * y, Vector2(x, y))
+            if x < map_width - 1 and y < map_height: 
+                astar.add_point(DIAG_ID + x + map_width * y, Vector2(x + 0.5, y + 0.5))
     for x in range(map_width):
         for y in range(map_height):
             if x > 0:
@@ -106,10 +110,21 @@ func _ready():
                 astar.connect_points(x + map_width * y, x + map_width * (y - 1), true)
             if y < map_height - 1:
                 astar.connect_points(x + map_width * y, x + map_width * (y + 1), true)
+            if x < map_width - 1 and y < map_height - 1:
+                astar.connect_points(x + map_width * y, DIAG_ID + x + map_width * y, true)
+            if x > 0 and y < map_height - 1:
+                astar.connect_points(x + map_width * y, DIAG_ID + (x - 1) + map_width * y, true)
+            if x < map_width - 1 and y > 0:
+                astar.connect_points(x + map_width * y, DIAG_ID + x + map_width * (y - 1), true)
+            if x > 0 and y > 0:
+                astar.connect_points(x + map_width * y, DIAG_ID + (x - 1) + map_width * (y - 1), true)
     
     calc_zones()
     
 func calc_zones():
+    for x in range(map_width):
+        for y in range(map_height):
+            map[x][y] = null
     # for empires
     for e in range(empires.size()):
         for p in astar.get_points():
@@ -150,7 +165,7 @@ func calc_zones():
                     control.control_empire = max_empires[0]
                 else:
                     max_empires.sort()
-                    control.control_empire = max_empires[(x + map_width * y) % max_empires.size()]
+                    control.control_empire = max_empires[(x + 37 * y) % max_empires.size()]
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 #func _process(delta):
@@ -233,4 +248,10 @@ func _input(event: InputEvent):
 
 
 func _on_Button_pressed():
-    print("pressed")
+    for u in units:
+        u.tile = u.next_tile
+    selected_unit = null
+    for p in astar.get_points():
+        astar.set_point_disabled(p, false)
+    calc_zones()
+    update()
