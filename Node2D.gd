@@ -16,6 +16,10 @@ class Unit:
     var tile: Vector2
     var next_tile: Vector2
 
+class TileInfo:
+    var controls: Dictionary
+    var control_empire
+
 var selected_unit = null
 
 const empires = Array()
@@ -119,10 +123,33 @@ func calc_zones():
                         var path = astar.get_id_path(u.tile.x + map_width * u.tile.y, x + map_width * y)
                         if path.size() <= u.speed and path.size() > 0:
                             if map[x][y] == null:
-                                map[x][y] = Dictionary()
-                            var controls = map[x][y]
-                            var empire_control = controls.get(e, 0)
-                            controls[e] = floor(max(empire_control, u.min_control + u.r_control * (u.speed - path.size())))
+                                var control = TileInfo.new()
+                                control.controls = Dictionary()
+                                control.control_empire = null
+                                map[x][y] = control
+                            var control = map[x][y]
+                            var empire_control = control.controls.get(e, 0)
+                            control.controls[e] = floor(max(empire_control, u.min_control + u.r_control * (u.speed - path.size())))
+    for x in range(map_width):
+        for y in range(map_height):
+            var control = map[x][y]
+            if control != null:
+                var max_control = null
+                var max_empires = Array()
+                for e in control.controls.keys():
+                    if max_control == null or max_control < control.controls[e]:
+                        max_control = control.controls[e]
+                        max_empires.clear()
+                        max_empires.push_back(e)
+                    elif max_control == control.controls[e]:
+                        max_empires.push_back(e)
+                if max_empires.size() == 0:
+                    map[x][y] = null
+                elif max_empires.size() == 1:
+                    control.control_empire = max_empires[0]
+                else:
+                    max_empires.sort()
+                    control.control_empire = max_empires[(x + map_width * y) % max_empires.size()]
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 #func _process(delta):
@@ -130,25 +157,12 @@ func calc_zones():
 func _draw():
     for x in range(map_width):
         for y in range(map_height):
-            var controls = map[x][y]
-            if controls != null:
-                var max_control = null
-                var max_empires = Array()
-                for e in controls.keys():
-                    if max_control == null or max_control < controls[e]:
-                        max_control = controls[e]
-                        max_empires.clear()
-                        max_empires.push_back(e)
-                    elif max_control == controls[e]:
-                        max_empires.push_back(e)
-                if max_empires.size() == 0:
-                    draw_rect(Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), Color.black)
-                elif max_empires.size() == 1:
-                    draw_rect(Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), empires[max_empires[0]].color)
+            var control = map[x][y]
+            if control != null:
+                if control.control_empire != null:
+                    draw_rect(Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), empires[control.control_empire].color)
                 else:
-                    max_empires.sort()
-                    var e = max_empires[(x + map_width * y) % max_empires.size()]
-                    draw_rect(Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), empires[e].color)
+                    draw_rect(Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), Color.black)
             else:
                 draw_rect(Rect2(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), Color.black)
     for u in units:
@@ -167,13 +181,20 @@ func _input(event: InputEvent):
                     found = true
                     if selected_unit != u:
                         selected_unit = u
+                        for p in astar.get_points():
+                            astar.set_point_disabled(p, false)
+                        
                         update()
             if not found:
                 selected_unit = null
+                for p in astar.get_points():
+                    astar.set_point_disabled(p, false)
                 update()
         else:
             if selected_unit != null:
                 selected_unit = null
+                for p in astar.get_points():
+                    astar.set_point_disabled(p, false)
                 update()
     if event is InputEventMouseButton and event.button_index == BUTTON_RIGHT and selected_unit != null:
         pass
