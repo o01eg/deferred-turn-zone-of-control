@@ -17,6 +17,7 @@ class Unit:
     var empire: int
     var tile: Vector2
     var next_tile: Vector2
+    var attack_tile
 
 class TileInfo:
     var controls: Dictionary
@@ -93,6 +94,7 @@ func _ready():
     units.push_back(u3)
     
     $Button.margin_left = map_width * TILE_SIZE
+    $CheckButton.margin_left = map_width * TILE_SIZE
     
     astar.reserve_space(map_width * map_height * 2)
     for x in range(map_width):
@@ -195,6 +197,8 @@ func _draw():
         draw_texture(preload("res://assets/unit.png"), Vector2(u.tile.x * TILE_SIZE, u.tile.y * TILE_SIZE), empires[u.empire].color)
         if u.tile.x != u.next_tile.x or u.tile.y != u.next_tile.y:
             draw_line(Vector2(u.tile.x * TILE_SIZE + TILE_SIZE / 2, u.tile.y * TILE_SIZE + TILE_SIZE / 2), Vector2(u.next_tile.x * TILE_SIZE + TILE_SIZE / 2, u.next_tile.y * TILE_SIZE + TILE_SIZE / 2), Color.black)
+        if u.attack_tile != null:
+            draw_line(Vector2(u.next_tile.x * TILE_SIZE + TILE_SIZE / 2, u.next_tile.y * TILE_SIZE + TILE_SIZE / 2), Vector2(u.attack_tile.x * TILE_SIZE + TILE_SIZE / 2, u.attack_tile.y * TILE_SIZE + TILE_SIZE / 2), Color.black)
 
 func _input(event: InputEvent):
     if event is InputEventMouseButton and event.button_index == BUTTON_LEFT:
@@ -233,13 +237,40 @@ func _input(event: InputEvent):
                         if path != null and path.size() > 0 and path.size() <= selected_unit.speed:
                             selected_movements.append(Vector2(x, y))
             if movement:
-                var path = astar.get_id_path(selected_unit.tile.x + map_width * selected_unit.tile.y, tiles.x + map_width * tiles.y)
-                print(path)
-                if path != null and path.size() > 0 and path.size() <= selected_unit.speed:
-                    selected_unit.next_tile = tiles
-                    for p in astar.get_points():
-                        astar.set_point_disabled(p, false)
-                    update()
+                if $CheckButton.pressed:
+                    var found = false
+                    for u2 in units:
+                        if u2.tile.x == tiles.x and u2.tile.y == tiles.y \
+                            and abs(selected_unit.next_tile.x - u2.tile.x) <= 1 \
+                            and abs(selected_unit.next_tile.y - u2.tile.y) <= 1 \
+                            and selected_unit.empire != u2.empire:
+                            var is_allies = false
+                            for a in allies:
+                                if a.x == selected_unit.empire and a.y == u2.empire:
+                                    is_allies = true
+                                    break
+                                elif a.y == selected_unit.empire and a.x == u2.empire:
+                                    is_allies = true
+                                    break
+                            if not is_allies:
+                                selected_unit.attack_tile = tiles
+                                found = true
+                                for p in astar.get_points():
+                                    astar.set_point_disabled(p, false)
+                                update()
+                    if not found:
+                        selected_unit.attack_tile = null
+                        for p in astar.get_points():
+                            astar.set_point_disabled(p, false)
+                        update()
+                else:
+                    var path = astar.get_id_path(selected_unit.tile.x + map_width * selected_unit.tile.y, tiles.x + map_width * tiles.y)
+                    if path != null and path.size() > 0 and path.size() <= selected_unit.speed:
+                        selected_unit.next_tile = tiles
+                        selected_unit.attack_tile = null
+                        for p in astar.get_points():
+                            astar.set_point_disabled(p, false)
+                        update()
     if event is InputEventMouseButton and event.button_index == BUTTON_RIGHT and selected_unit != null:
         selected_unit = null
         for p in astar.get_points():
@@ -248,8 +279,21 @@ func _input(event: InputEvent):
 
 
 func _on_Button_pressed():
+    # movements
     for u in units:
         u.tile = u.next_tile
+    # attacks
+    var dead: Dictionary = Dictionary()
+    for u in units:
+        if u.attack_tile != null:
+            for uidx in range(units.size()):
+                if units[uidx].tile.x == u.attack_tile.x and units[uidx].tile.y == u.attack_tile.y:
+                    dead[uidx] = true
+            u.attack_tile = null
+    var deadidx = dead.keys()
+    deadidx.sort()
+    for i in range(deadidx.size()):
+        units.remove(deadidx[deadidx.size() - 1 - i])
     selected_unit = null
     for p in astar.get_points():
         astar.set_point_disabled(p, false)
